@@ -1,5 +1,4 @@
-# THIS IS NOT TO BE USED FOR PERSONAL DEPLOYMENTS!
-# Internal Docker Compose Image used for internal testing deployments
+version: "3.8"
 
 services:
   hoppscotch-db:
@@ -25,13 +24,12 @@ services:
       dockerfile: prod.Dockerfile
       context: .
       target: aio
-    environment:
-      # DATABASE_URL is read from the .env file to allow the backend to connect with an external database.
-      # This allows the backend to retain existing data and prevents database resets during deployments.
-      # - DATABASE_URL=postgresql://postgres:testpass@hoppscotch-db:5432/hoppscotch
-      - ENABLE_SUBPATH_BASED_ACCESS=true
     env_file:
       - ./.env
+    environment:
+      - ENABLE_SUBPATH_BASED_ACCESS=true
+      # DATABASE_URL should point at hoppscotch-db internally:
+      # - DATABASE_URL=postgresql://postgres:testpass@hoppscotch-db:5432/hoppscotch
     depends_on:
       hoppscotch-db:
         condition: service_healthy
@@ -57,3 +55,20 @@ services:
       interval: 2s
       timeout: 10s
       retries: 30
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: hoppscotch-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - hoppscotch-aio
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/nginx/certs:ro    # mount your TLS certs here
+    restart: unless-stopped
+
+# volumes: (optional named volumes for persistence)
+volumes:
+  postgres_data:
